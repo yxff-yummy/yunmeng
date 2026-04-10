@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ordered Logit Regression - 有序 Logit 回归分析</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+
+    <style>
+        /* ===========================================
+           CSS 自定义属性 - Notebook Tabs 主题
+           =========================================== */
+        :root {
+            /* 颜色 */
+            --bg-outer: #2d2d2d;
+            --bg-page: #f8f6f1;
+            --text-primary: #1a1a1a;
+            --text-secondary: #555555;
+            --text-muted: #888888;
+            --tab-1: #98d4bb;
+            --tab-2: #c7b8ea;
+            --tab-3: #f4b8c5;
+            --tab-4: #a8d8ea;
+            --tab-5: #ffe6a7;
+            --accent: #4a90a4;
+            --code-bg: #f0eee9;
+
+            /* 字体 */
+            --font-display: 'Bodoni Moda', serif;
+            --font-body: 'DM Sans', sans-serif;
+
+            /* 响应式排版 */
+            --title-size: clamp(2rem, 5vw, 4rem);
+            --h2-size: clamp(1.5rem, 3.5vw, 2.5rem);
+            --h3-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            --body-size: clamp(0.875rem, 1.8vw, 1.125rem);
+            --small-size: clamp(0.75rem, 1.4vw, 0.95rem);
+            --code-size: clamp(0.7rem, 1.3vw, 0.9rem);
+
+            /* 间距 */
+            --slide-padding: clamp(1.5rem, 4vw, 3rem);
+            --content-gap: clamp(0.75rem, 2vw, 1.5rem);
+            --element-gap: clamp(0.5rem, 1.5vw, 1rem);
+        }
+
+        /* ===========================================
+           基础样式重置
+           =========================================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            font-family: var(--font-body);
+            background: var(--bg-outer);
+        }
+
+        html {
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+            scroll-behavior: smooth;
+        }
+
+        /* 隐藏滚动条但保留功能 */
+        html::-webkit-scrollbar {
+            width: 0;
+        }
+
+        /* ===========================================
+           幻灯片容器
+           =========================================== */
+        .slide {
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            scroll-snap-align: start;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        /* 纸张卡片效果 */
+        .paper-card {
+            width: min(88vw, 1000px);
+            height: min(88vh, 750px);
+            background: var(--bg-page);
+            border-radius: 4px;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.35);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            margin-right: clamp(3rem, 6vw, 5rem);
+        }
+
+        /* 标签页 */
+        .tabs-container {
+            position: absolute;
+            right: calc(-1 * clamp(2rem, 4vw, 3.5rem));
+            top: clamp(4rem, 8vw, 8rem);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .tab {
+            padding: clamp(0.6rem, 1.5vw, 1rem) clamp(1rem, 2.5vw, 1.8rem);
+            font-size: clamp(0.65rem, 1.1vw, 0.85rem);
+            font-weight: 500;
+            color: #2d2d2d;
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            border-radius: 4px 4px 0 0;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+        }
+
+        .tab:hover {
+            transform: rotate(180deg) translateX(-6px);
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .tab.active {
+            font-weight: 700;
+            box-shadow: 2px 2px 12px rgba(0,0,0,0.25);
+        }
+
+        .tab-1 { background: var(--tab-1); }
+        .tab-2 { background: var(--tab-2); }
+        .tab-3 { background: var(--tab-3); }
+        .tab-4 { background: var(--tab-4); }
+        .tab-5 { background: var(--tab-5); }
+
+        /* 活页孔装饰 */
+        .binder-hole {
+            position: absolute;
+            left: calc(-1 * clamp(1rem, 2vw, 1.5rem));
+            width: clamp(14px, 2.5vw, 22px);
+            height: clamp(14px, 2.5vw, 22px);
+            background: var(--bg-outer);
+            border-radius: 50%;
+            opacity: 0.4;
+            box-shadow: inset 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        /* ===========================================
+           幻灯片内容区
+           =========================================== */
+        .slide-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: clamp(2rem, 5vw, 4rem) clamp(2.5rem, 5vw, 4.5rem);
+            overflow: hidden;
+        }
+
+        /* 标题幻灯片特殊布局 */
+        .title-slide .slide-content {
+            justify-content: flex-start;
+            padding-top: clamp(3rem, 8vh, 5rem);
+        }
+
+        /* ===========================================
+           排版样式
+           =========================================== */
+        h1 {
+            font-family: var(--font-display);
+            font-size: var(--title-size);
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.15;
+            margin-bottom: var(--content-gap);
+            letter-spacing: -0.01em;
+        }
+
+        h2 {
+            font-family: var(--font-display);
+            font-size: var(--h2-size);
+            font-weight: 600;
+            color: var(--text-primary);
+            line-height: 1.25;
+            margin-bottom: var(--element-gap);
+        }
+
+        h3 {
+            font-family: var(--font-body);
+            font-size: var(--h3-size);
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: var(--element-gap);
+        }
+
+        p {
+            font-size: var(--body-size);
+            line-height: 1.7;
+            color: var(--text-secondary);
+            margin-bottom: var(--element-gap);
+            max-width: 75ch;
+        }
+
+        .subtitle {
+            font-family: var(--font-display);
+            font-style: italic;
+            font-size: clamp(1.25rem, 2.8vw, 1.8rem);
+            color: var(--text-muted);
+            margin-bottom: var(--content-gap);
+        }
+
+        .author {
+            font-size: var(--small-size);
+            color: var(--text-muted);
+            margin-top: var(--content-gap);
+        }
+
+        /* ===========================================
+           列表样式
+           =========================================== */
+        ul, ol {
+            margin-bottom: var(--element-gap);
+            padding-left: var(--slide-padding);
+        }
+
+        li {
+            font-size: var(--body-size);
+            line-height: 1.8;
+            color: var(--text-secondary);
+            margin-bottom: calc(var(--element-gap) / 1.5);
+        }
+
+        li::marker {
+            color: var(--accent);
+        }
+
+        /* ===========================================
+           代码块样式
+           =========================================== */
+        pre {
+            background: var(--code-bg);
+            padding: var(--content-gap);
+            border-radius: 4px;
+            border-left: 3px solid var(--accent);
+            overflow-x: auto;
+            margin-bottom: var(--element-gap);
+        }
+
+        code {
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: var(--code-size);
+            line-height: 1.6;
+            color: var(--text-primary);
+        }
+
+        .inline-code {
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: var(--code-size);
+            background: var(--code-bg);
+            padding: 0.1em 0.3em;
+            border-radius: 3px;
+            color: var(--text-primary);
+        }
+
+        /* ===========================================
+           强调样式
+           =========================================== */
+        .highlight {
+            background: linear-gradient(transparent 60%, rgba(152, 212, 187, 0.4) 60%);
+            padding: 2px 4px;
+        }
+
+        .accent-text {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .formula {
+            font-family: 'Times New Roman', serif;
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            text-align: center;
+            padding: var(--content-gap);
+            background: var(--code-bg);
+            border-radius: 4px;
+            margin: var(--content-gap) 0;
+        }
+
+        /* ===========================================
+           两列布局
+           =========================================== */
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--content-gap);
+            margin-top: var(--content-gap);
+        }
+
+        .column {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ===========================================
+           表格样式
+           =========================================== */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: var(--content-gap) 0;
+            font-size: var(--small-size);
+        }
+
+        th, td {
+            padding: var(--element-gap);
+            text-align: left;
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+        }
+
+        th {
+            font-weight: 600;
+            color: var(--text-primary);
+            background: rgba(0,0,0,0.03);
+        }
+
+        tr:hover {
+            background: rgba(0,0,0,0.02);
+        }
+
+        /* ===========================================
+           引用块
+           =========================================== */
+        blockquote {
+            border-left: 3px solid var(--accent);
+            padding-left: var(--content-gap);
+            margin: var(--content-gap) 0;
+            font-style: italic;
+            color: var(--text-secondary);
+        }
+
+        /* ===========================================
+           幻灯片编号
+           =========================================== */
+        .slide-number {
+            position: absolute;
+            bottom: clamp(1rem, 2vw, 2rem);
+            right: clamp(2rem, 4vw, 4rem);
+            font-family: var(--font-display);
+            font-size: clamp(1.5rem, 3vw, 2.2rem);
+            color: var(--text-muted);
+            opacity: 0.5;
+        }
+
+        /* ===========================================
+           进度条
+           =========================================== */
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 3px;
+            background: var(--accent);
+            transition: width 0.3s ease;
+            z-index: 1000;
+        }
+
+        /* ===========================================
+           导航点
+           =========================================== */
+        .nav-dots {
+            position: fixed;
+            right: clamp(1rem, 2vw, 2rem);
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.5rem, 1vw, 1rem);
+            z-index: 1000;
+        }
+
+        .nav-dot {
+            width: clamp(8px, 1.5vw, 12px);
+            height: clamp(8px, 1.5vw, 12px);
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .nav-dot.active {
+            background: var(--tab-2);
+            transform: scale(1.2);
+        }
+
+        .nav-dot:hover {
+            background: rgba(255,255,255,0.6);
+        }
+
+        /* ===========================================
+           键盘提示
+           =========================================== */
+        .keyboard-hint {
+            position: fixed;
+            bottom: clamp(0.75rem, 1.5vw, 1.25rem);
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: clamp(0.65rem, 1.2vw, 0.8rem);
+            color: rgba(255,255,255,0.5);
+            display: flex;
+            gap: var(--element-gap);
+            z-index: 1000;
+        }
+
+        .key {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.15em 0.5em;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 4px;
+            background: rgba(255,255,255,0.1);
+            font-family: var(--font-body);
+        }
+
+        /* ===========================================
+           动画效果
+           =========================================== */
+        .reveal {
+            opacity: 0;
+            transform: translateY(25px);
+            transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+                        transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .slide.visible .reveal {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* 交错延迟 */
+        .reveal:nth-child(1) { transition-delay: 0.1s; }
+        .reveal:nth-child(2) { transition-delay: 0.15s; }
+        .reveal:nth-child(3) { transition-delay: 0.2s; }
+        .reveal:nth-child(4) { transition-delay: 0.25s; }
+        .reveal:nth-child(5) { transition-delay: 0.3s; }
+        .reveal:nth-child(6) { transition-delay: 0.35s; }
+
+        /* 淡入效果 */
+        .reveal-fade {
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+
+        .slide.visible .reveal-fade {
+            opacity: 1;
+        }
+
+        /* ===========================================
+           响应式断点
+           =========================================== */
+        @media (max-height: 700px) {
+            .paper-card {
+                margin-right: clamp(2rem, 4vw, 3rem);
+            }
+            .tabs-container {
+                right: calc(-1 * clamp(1.5rem, 3vw, 2.5rem));
+            }
+            :root {
+                --title-size: clamp(1.75rem, 4.5vw, 3rem);
+                --h2-size: clamp(1.25rem, 3vw, 2rem);
+            }
+        }
+
+        @media (max-height: 600px) {
+            .binder-hole { display: none; }
+            .slide-number { font-size: clamp(1.2rem, 2.5vw, 1.8rem); }
+        }
+
+        @media (max-width: 600px) {
+            .paper-card {
+                margin-right: 0;
+                width: min(92vw, 500px);
+            }
+            .tabs-container {
+                display: none;
+            }
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ===========================================
+           减少动画
+           =========================================== */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.2s !important;
+            }
+            html {
+                scroll-behavior: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 进度条 -->
+    <div class="progress-bar" id="progressBar"></div>
+
+    <!-- 导航点 -->
+    <nav class="nav-dots" id="navDots"></nav>
+
+    <!-- 键盘提示 -->
+    <div class="keyboard-hint">
+        <span><span class="key">←</span> <span class="key">→</span> 导航</span>
+        <span><span class="key">Space</span> 下一页</span>
+    </div>
+
+    <!-- Slide 1: 标题页 -->
+    <section class="slide title-slide" id="slide-1">
+        <div class="paper-card">
+            <!-- 活页孔 -->
+            <div class="binder-hole" style="top: 15%;"></div>
+            <div class="binder-hole" style="top: 50%;"></div>
+            <div class="binder-hole" style="top: 85%;"></div>
+
+            <!-- 标签页 -->
+            <div class="tabs-container">
+                <span class="tab tab-1 active" data-slide="1">引言</span>
+                <span class="tab tab-2" data-slide="4">理论基础</span>
+                <span class="tab tab-3" data-slide="7">模型估计</span>
+                <span class="tab tab-4" data-slide="11">实践应用</span>
+                <span class="tab tab-5" data-slide="15">总结</span>
+            </div>
+
+            <div class="slide-content">
+                <h1 class="reveal">Ordered Logit<br>Regression</h1>
+                <p class="subtitle reveal">有序 Logit 回归分析详解</p>
+                <p class="author reveal">技术分享幻灯片</p>
+            </div>
+
+            <div class="slide-number">01 / 15</div>
+        </div>
+    </section>
+
+    <!-- Slide 2: 目录 -->
+    <section class="slide" id="slide-2">
+        <div class="paper-card">
+            <div class="binder-hole" style="top: 15%;"></div>
+            <div class="binder-hole" style="top: 50%;"></div>
+            <div class="binder-hole" style="top: 85%;"></div>
+
+            <div class="slide-content">
+                <h2 class="reveal">内容概览</h2>
+                <div class="two-column reveal">
+                    <div class="column">
+                        <h3>一、引言</h3>
+                        <ul>
+                            <li>什么是有序 Logit 回归</li>
+                            <li>适用场景</li>
+                            <li>与相关模型的区别</li>
+                        </ul>
+                        <h3>二、理论基础</h3>
+                        <ul>
+                            <li>潜变量框架</li>
+                            <li>累积概率</li>
+                            <li>平行线假设</li>
+                        </ul>
+                    </div>
+                    <div class="column">
+                        <h3>三、模型估计</h3>
+                        <ul>
+                            <li>极大似然估计</li>
+                            <li>优势比解释</li>
+                            <li>边际效应</li>
+                        </ul>
+                        <h3>四、实践应用</h3>
+                        <ul>
+                            <li>Stata/R 实现</li>
+                            <li>模型诊断</li>
+                            <li>结果解读</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-number">02 / 15</div>
+        </div>
+    </section>
+
+    <!-- Slide 3: 什么是有序 Logit -->
+    <section class="slide" id="slide-3">
+        <div class="paper-card">
+            <div class="binder-hole" style="top: 15%;"></div>
+            <div class="binder-hole" style="top: 50%;"></div>
+            <div class="binder-hole" style="top: 85%;"></div>
+
+            <div class="slide-content">
+                <h2 class="reveal">什么是有序 Logit 回归？</h2>
+                <p class="reveal">有序 Logit 回归（Ordered Logit Regression），又称比例优势模型（Proportional Odds Model），是用于分析<span class="highlight">有序分类因变量</span>的统计方法。</p>
+
+                <div class="reveal" style="margin-top: var(--content-gap);">
+                    <h3>典型应用场景</h3>
+                    <ul>
+                        <li><strong>李克特量表：</strong>非常不同意 → 不同意 → 中立 → 同意 → 非常同意</li>
+                        <li><strong>评级系统：</strong>差 / 一般 / 好 / 优秀</li>
+                        <li><strong>教育程度：</strong>小学 / 中学 / 大学 / 研究生</li>
+                        <li><strong>满意度调查：</strong>非常不满意 → 非常满意</li>
+                        <li><strong>疾病严重程度：</strong>轻度 / 中度 / 重度</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="slide-number">03 / 15</div>
+        </div>
+    </section>
+
+    <!-- Slide 4: 为什么需要有序 Logit -->
+    <section class="slide" id="slide-4">
+        <div class="paper-card">
+            <div class="binder-hole" style="top: 15%;"></div>
+            <div class="binder-hole" style="top: 50%;"></div>
+            <div class="binder-hole" style="top: 85%;"></div>
+
+            <div class="slide-content">
+                <h2 class="reveal">为什么需要有序 Logit？</h2>
+
+                <div class="two-column reveal">
+                    <div class="column">
+                        <h3>❌ 错误做法</h3>
+                        <ul>
+                            <li><strong>OLS 回归：</strong>将有序类别当作连续数值处理，违反等距假设</li>
+                            <li><strong>多项 Logit：</strong>忽略类别间的顺序信息，损失统计功效</li>
+                        </ul>
+                    </div>
+                    <div class="column">
+                        <h3>✅ 有序 Logit 的优势</h3>
+                        <ul>
+                            <li><strong>尊重顺序：</strong>利用因变量的排序信息</li>
+                            <li><strong>无需等距：</strong>不假设类别间距离相等</li>
+                            <li><strong>更高效：</strong>比多项 Logit 估计更精确</li>
+                            <li><strong>易解释：</strong>优势比提供直观解释</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <blockquote class="reveal">
+                    核心思想：估计自变量对"处于某一类别或更高类别"的对数几率的影响。
+                </blockquote>
+            </div>
+
+            <div class="slide-number">04 / 15</div>
+        </div>
+    </section>
+
+    <!-- Slide 5: 与多项 Logit 的区别 -->
+    <section class="slide" id="slide-5">
+        <div class="paper-card">
+            <div class="binder-hole" style="top: 15%;"></div>
+            <div class="binder-hole" style="top: 50%;"></div>
+            <div class="binder-hole" style="top: 85%;"></div>
+
+            <div class="slide-content">
+                <h2 class="reveal">与多项 Logit 的区别</h2>
+
+                <table class="reveal">
+                    <thead>
+                        <tr>
+                            <th>特征</th>
+                            <th>有序 Logit</th>
+                            <th>多项 Logit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>因变量类型</strong></td>
+                            <td>有序分类</td>
+                            <td>无序分类</td>
+                        </tr>
+                        <tr>
+                            <td><strong>利用顺序信息</strong></td>
+                            <td>✅ 是</td>
+                            <td>❌ 否</td>
+                        </tr>
+                        <tr>
+                            <td><strong>参数数量</strong></td>
+                            <td>较少（更高效）</td>
+                            <td>较多</td>
+                        </tr>
+                        <tr>
+                            <td><strong>关键假设</strong></td>
+                            <td>平行线假设</td>
+                            <td>IIA 假设</td>
+                        </tr>
+                        <tr>
+                            <td><strong>解释方式</strong></td>
+                            <td>累积优势比</td>
+                            <td>相对风险比</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p class="reveal" style="margin-top: var(--element-gap);">
+                    <span class="accent-text">选择建议：</span>如果因变量类别有明确顺序，优先使用有序 Logit。
+                </p>
+            </div>
+
+            <div class="slide-number">05 / 15</div>
+        </div>
+    </section>
+
+    <!-- Slide 6: 平行线假设 -->
+    <section class="slide" id="slide-6">
+        <div class="paper-card">
+            <div class="binder-hole" style="top: 15%;"></div>
+            <div class="binder-hole" style="top: 50%;"></div>
+            <div class="binder-hole" style="top: 85%;"></div>
+
+            <div class="slide-content">
+                <h2 class="reveal">平行线假设（Proportional Odds）</h2>
+
+                <p class="reveal">这是有序 Logit 模型的核心假设，也称为<span class="highlight">等斜率假设</span>。</p>
+
+                <div class="reveal" style="margin-top: var(--content-gap);">
+                    <h3>假设内容</h3>
+                    <p>自变量 X 对每个累积发生比的对数影响是相同的，即回归系数β在不同分割点上保持一致。</p>
+                </div>
+
+                <div class="reveal" style="margin-top: var(--content-gap);">
+                    <h3>图形理解</h3>
+                    <p>想象多条平行的 S 型曲线，每条曲线代表一个分割点，但斜率（β）相同，仅截距（α）不同。</p>
+                </div>
+
+                <blockquote class="reveal">
+                    <strong>检验方法：</strong>Brant 检验、Score 检验。若假设不成立，可考虑广义有序 Logit 模型。
+                </blockquote>
+            </div>
+
+            <div class="slide-number">06 / 15</div>
+        </div>
+    </section>
+
+    <!-- Slide 7: 数学公式 -->
+    <section class="slide" id="slide-7">
+        <div class="paper-card">
+            <div class="binder-hole" style="top: 15%;"></div>
+            <div class="binder-hole" style="top: 50%;"></div>
+            <div class="binder-hole" style="top: 85%;"></div>
+
+            <div class="slide-content">
+                <h2 class="reveal">数学模型</h2>
+
+                <p class="reveal">设 Y 有 K 个有序类别：1, 2, ..., K</p>
+
+                <div class="reveal">
+                    <h3 style="margin-top: var(--content-gap);">累积概率</h3>
+                    <div class="formula">
+                        P(Y ≤ j | X) = P(Y ≤ j) = π₁ + π₂ + ... + πⱼ
+                    </div>
+                </div>
+
+                <div class="reveal">
+                    <h3 style="margin-top: var(--content-gap);">Logit 模型</h3>
+                    <div class="formula">
+                        logit[P(Y ≤ j)] = ln[P(Y ≤ j) / (1 - P(Y ≤ j))] = αⱼ - βX
+                    </div>
+                    <p style="text-align: center; margin-top: var(--element-gap);">
+                        或等价地：<br>
+                        <strong>ln[P(Y ≤ j) / P(Y > j)] = αⱼ - βX</strong>
+                    </p>
+                </div>
+
+                <div class="reveal" style="margin-top: var(--content-gap);">
+                    <h3>参数说明</h3>
+                    <ul>
+                        <li><strong>αⱼ：</strong>第 j 个分割点的截距（阈值）</li>
+                        <li><strong>β：</strong>回归系数（在所有分割点上相同）</li>
+                        <li><strong>X：</strong>自变量向量</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="slide-number">07 / 15</div>
+        </div>
+    </section>
+
+    <!-- Slide 8: 潜变量框架 -->
+    <section class="slide" id="slide-8">
+        <div class="paper-card">
+            <div class="binder-hole" style="top: 15%;"></div>
+            <div class="binder-hole" style="top: 50%;"></div>
+            <div class="binder-hole" style="top: 85%;"></div>
+
+            <div class="slide-content">
+                <h2 class="reveal">潜变量（Latent Variable）解释</h2>
+
+                <p class="reveal">有序 Logit 可以理解为某个连续潜变量 Y* 的离散化表现。</p>
+
+                <div class="reveal" style="margin-top: var(--content-gap);">
+                    <h3>潜变量模型</h3>
+                    <div class="formula">
+                        Y* = βX + ε,  其中 ε ~ Logistic(0, π²/3)
+                    </div>
+                </div>
+
+                <div class="reveal" style="margin-top: var(--content-gap);">
+                    <h3>观测规则</h3>
+                    <div class="formula" style="font-size: clamp(0.9rem, 2vw, 1.2rem);">
+                        Y = 1  若  Y* ≤ τ₁<br>
+                        Y = 2  若  τ₁ < Y* ≤ τ₂<br>
+                        ...<br>
+                        Y = K  若  Y* > τ<sub>K-1</sub>
+                    </div>
+                </div>
+
+                <div class="reveal" style="margin-top: var(--content-gap);">
+                    <h3>阈值与截距的关系</h3>
+                    <p>阈值 τⱼ = -αⱼ，阈值必须严格递增：τ₁ < τ₂ < ... < τ<sub>K-1</sub></p>
+                </div>
+            </div>
+
+            <div class="slide-number">08 / 15</div>
+        </div>
+    </section>
+
+    <!-- Slide 9: 参数估计 -->
+    <section class="slide" id="slide-9">
+        <div class="paper-card">
+            <div class="binder-hole" style="top: 15%;"></div>
+            <div class="binder-hole" style="top: 50%;"></div>
+            <div class="binder-hole" style="top: 85%;"></div>
+
+            <div class="slide-content">
+                <h2 class="reveal">参数估计：极大似然法</h2>
+
+                <p class="reveal">有序 Logit 使用极大似然估计（MLE）来估计参数。</p>
+
+                <div class="reveal" style="margin-top: var(--content-gap);">
+                    <h3>对数似然函数</h3>
+                    <div class="formula" style="font-size: clamp(0.85rem, 1.8vw, 1.1rem);">
+                        ln L = Σᵢ Σⱼ yᵢⱼ · ln[P(Yᵢ = j | Xᵢ)]
+                    </div>
+                </div>
+
+                <div class="reveal" style="margin-top: var(--content-gap);">
+                    <h3>估计步骤</h3>
+                    <ol>
+                        <li>基于数据构建似然函数</li>
+                        <li>使用 Newton-Raphson 或 BFGS 等数值优化算法</li>
+                        <li>迭代直至收敛</li>
+                        <li>计算标准误和检验统计量</li>
+                    </ol>
+                </div>
+
+                <blockquote class="reveal">
+                    <strong>注意：</strong>MLE 估计量具有一致性、渐近正态性和有效性。
+                </blockquote>
+            </div>
+
+            <div class="slide-number">09 / 15</div>
+        </div>
+    </section>
+
+    <!-- Slide 10: 优势比解释 -->
+    <section class="slide" id="slide-10">
+        <div class="paper-card">
+            <div class="binder-hole" style="top: 15%;"></div>
+            <div class="binder-hole" style="top: 50%;"></div>
+            <div class="binder-hole" style="top: 85%;"></div>
+
+            <div class="slide-content">
+                <h2 class="reveal">优势比（Odds Ratio）解释</h2>
+
+                <p class="reveal">exp(β) 给出了优势比，是最直观的解释方式。</p>
+
+                <div class="two-column reveal">
+                    <div class="column">
+                        <h3>OR > 1</h3>
+                        <p>X 增加 → Y 取<span class="accent-text">更高值</span>的几率增加</p>
+                        <p style="margin-top: var(--element-gap);"><strong>示例：</strong>OR = 1.5<br>收入每增加 1 单位，满意度达到"高"而非"低"的几率增加 50%</p>
+                    </div>
+                    <div class="column">
+                        <h3>OR < 1</h3>
+                        <p>X 增加 → Y 取<span class="accent-text">更高值</span>的几率减少</p>
+                        <p style="margin-top: var(--element-gap);"><strong>示例：</strong>OR = 0.7<br>年龄每增加 1 岁，健康状况达到"优秀"而非"较差"的几率降低 30%</p>
+                    </div>
+                </div>
+
+                <div class="reveal" style="margin-top: var(--content-gap);">
+                    <h3>计算示例</h3>
+                    <pre><code>若 β = 0.405, 则 OR = exp(0.405) ≈ 1.5
+解释：X 每增加 1 单位，Y 达到更高类别的几率是原来的 1.5 倍</code></pre>
+                </div>
+            </div>
+
+            <div class="slide-number">10 / 15</div>
+        </div>
+    </section>
+
+    <!-- Slide 11: Stata 实现 -->
+    <section class="slide" id="slide-11">
+        <div class="paper-card">
+            <div class="binder-hole" style="top: 15%;"></div>
+            <div class="binder-hole" style="top: 50%;"></div>
+            <div class="binder-hole" style="top: 85%;"></div>
+
+            <div class="slide-content">
+                <h2 class="reveal">Stata 实现</h2>
+
+                <div class="reveal">
+                    <h3>基本命令</h3>
+                    <pre><code>// 有序 Logit 回归
+ologit satisfaction income age education, or
+
+// 边际效应
+margins, dydx(*) atmeans
+
+// 预测概率
+predict prob1 prob2 prob3 prob4 prob5
+
+// 平行线假设检验
+omodel ologit satisfaction income age education
+brant, detail</code></pre>
+                </div>
+
+                <div class="reveal" style="margin-top: var(--content-gap);">
+                    <h3>输出解读</h3>
+                    <ul>
+                        <li><strong>Coef.：</strong>回归系数β</li>
+                        <li><strong>Odds Ratio：</strong>优势比 exp(β)</li>
+                        <li><strong>P>|z|：</strong>显著性水平</li>
+                        <li><strong>[/cut]：</strong>分割点/阈值估计</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="slide-number">11 / 15</div>
+        </div>
+    </section>
+
+    <!-- Slide 12: R 实现 -->
+    <section class="slide" id="slide-12">
+        <div class="paper-card">
+            <div class="binder-hole" style="top: 15%;"></div>
+            <div class="binder-hole" style="top: 50%;"></div>
+            <div class="binder-hole" style="top: 85%;"></div>
+
+            <div class="slide-content">
+                <h2 class="reveal">R 语言实现</h2>
+
+                <div class="reveal">
+                    <h3>使用 MASS 包</h3>
+                    <pre><code># 加载包
+library(MASS)
+
+# 拟合模型
+model <- polr(satisfaction ~ income + age + education,
+              data = mydata, Hess = TRUE)
+
+# 查看结果
+summary(model)
+exp(coef(model))  # 优势比
+
+# 置信区间
+exp(confint(model))
+
+# 预测
+predict(model, type = "probs")</code></pre>
+                </div>
+
+                <div class="reveal" style="margin-top: var(--content-gap);">
+                    <h3>其他有用包</h3>
+                    <ul>
+                        <li><code>ordinal</code>：扩展功能</li>
+                        <li><code>effects</code>：可视化边际效应</li>
+                        <li><code>brant</code>：平行线假设检验</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="slide-number">12 / 15</div>
+        </div>
+    </section>
+
+    <!-- Slide 13: 模型诊断 -->
+    <section class="slide" id="slide-13">
+        <div class="paper-card">
+            <div class="binder-hole" style="top: 15%;"></div>
+            <div class="binder-hole" style="top: 50%;"></div>
+            <div class="binder-hole" style="top: 85%;"></div>
+
+            <div class="slide-content">
+                <h2 class="reveal">模型诊断与检验</h2>
+
+                <div class="reveal">
+                    <h3>1. 平行线假设检验</h3>
+                    <pre><code>Stata: brant, detail
+R: brant(model)</code></pre>
+                    <p>若 p < 0.05，拒绝原假设 → 考虑广义有序 Logit</p>
+                </div>
+
+                <div class="reveal" style="margin-top: var(--content-gap);">
+                    <h3>2. 模型拟合优度</h3>
+                    <ul>
+                        <li><strong>Pseudo R²：</strong>McFadden、Nagelkerke</li>
+                        <li><strong>似然比检验：</strong>与空模型比较</li>
+                        <li><strong>AIC/BIC：</strong>模型比较</li>
+                    </ul>
+                </div>
+
+                <div class="reveal" style="margin-top: var(--content-gap);">
+                    <h3>3. 预测准确性</h3>
+                    <ul>
+                        <li>计算正确分类率</li>
+                        <li>绘制 ROC 曲线（二分类合并时）</li>
+                    </ul>
+                </div>
+
+                <blockquote class="reveal">
+                    <strong>重要：</strong>始终检查残差和异常值！
+                </blockquote>
+            </div>
+
+            <div class="slide-number">13 / 15</div>
+        </div>
+    </section>
+
+    <!-- Slide 14: 实际案例 -->
+    <section class="slide" id="slide-14">
+        <div class="paper-card">
+            <div class="binder-hole" style="top: 15%;"></div>
+            <div class="binder-hole" style="top: 50%;"></div>
+            <div class="binder-hole" style="top: 85%;"></div>
+
+            <div class="slide-content">
+                <h2 class="reveal">实际案例分析</h2>
+
+                <div class="reveal">
+                    <h3>研究问题</h3>
+                    <p>什么因素影响员工的晋升意愿？（因变量：非常不想 / 不想 / 无所谓 / 想 / 非常想）</p>
+                </div>
+
+                <div class="reveal" style="margin-top: var(--content-gap);">
+                    <h3>自变量</h3>
+                    <ul>
+                        <li>年龄（连续）</li>
+                        <li>工作年限（连续）</li>
+                        <li>教育程度（分类）</li>
+                        <li>薪资水平（连续）</li>
+                        <li>工作满意度（有序）</li>
+                    </ul>
+                </div>
+
+                <div class="reveal" style="margin-top: var(--content-gap);">
+                    <h3>关键发现示例</h3>
+                    <ul>
+                        <li>工作满意度 OR = 2.1 (p < 0.01)：满意度越高，晋升意愿越强</li>
+                        <li>年龄 OR = 0.95 (p < 0.05)：年龄越大，晋升意愿越低</li>
+                        <li>Brant 检验 p = 0.12：平行线假设成立</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="slide-number">14 / 15</div>
+        </div>
+    </section>
+
+    <!-- Slide 15: 总结 -->
+    <section class="slide" id="slide-15">
+        <div class="paper-card">
+            <div class="binder-hole" style="top: 15%;"></div>
+            <div class="binder-hole" style="top: 50%;"></div>
+            <div class="binder-hole" style="top: 85%;"></div>
+
+            <div class="slide-content">
+                <h2 class="reveal">总结与要点</h2>
+
+                <div class="reveal">
+                    <h3>核心要点</h3>
+                    <ul>
+                        <li>有序 Logit 适用于<span class="highlight">有序分类因变量</span></li>
+                        <li>利用顺序信息，比多项 Logit 更高效</li>
+                        <li>核心假设是<span class="highlight">平行线假设</span></li>
+                        <li>优势比 exp(β) 提供直观解释</li>
+                        <li>需检验假设是否成立</li>
+                    </ul>
+                </div>
+
+                <div class="reveal" style="margin-top: var(--content-gap);">
+                    <h3>何时使用</h3>
+                    <blockquote>
+                        当你的因变量是有序分类变量，且平行线假设通过检验时，有序 Logit 是首选方法。
+                    </blockquote>
+                </div>
+
+                <div class="reveal" style="margin-top: var(--content-gap);">
+                    <h3>扩展阅读</h3>
+                    <ul>
+                        <li>广义有序 Logit 模型（放宽平行线假设）</li>
+                        <li>有序 Probit 模型（正态分布假设）</li>
+                        <li>多层有序 Logit（嵌套数据）</li>
+                    </ul>
+                </div>
+
+                <p class="reveal" style="margin-top: var(--content-gap); font-style: italic;">
+                    谢谢！Q&A
+                </p>
+            </div>
+
+            <div class="slide-number">15 / 15</div>
+        </div>
+    </section>
+
+    <!-- JavaScript 控制器 -->
+    <script>
+        /* ===========================================
+           SLIDE PRESENTATION CONTROLLER
+           =========================================== */
+        class SlidePresentation {
+            constructor() {
+                this.slides = document.querySelectorAll('.slide');
+                this.currentSlide = 0;
+                this.progressBar = document.getElementById('progressBar');
+                this.navDotsContainer = document.getElementById('navDots');
+
+                this.setupIntersectionObserver();
+                this.setupKeyboardNav();
+                this.setupTouchNav();
+                this.setupProgressBar();
+                this.setupNavDots();
+                this.setupTabNav();
+            }
+
+            setupIntersectionObserver() {
+                const options = {
+                    root: null,
+                    rootMargin: '-50% 0px',
+                    threshold: 0.5
+                };
+
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('visible');
+                        }
+                    });
+                }, options);
+
+                this.slides.forEach(slide => {
+                    observer.observe(slide);
+                });
+            }
+
+            setupKeyboardNav() {
+                document.addEventListener('keydown', (e) => {
+                    switch(e.key) {
+                        case 'ArrowDown':
+                        case 'ArrowRight':
+                        case 'PageDown':
+                        case ' ':
+                            this.goToSlide(this.currentSlide + 1);
+                            e.preventDefault();
+                            break;
+                        case 'ArrowUp':
+                        case 'ArrowLeft':
+                        case 'PageUp':
+                            this.goToSlide(this.currentSlide - 1);
+                            e.preventDefault();
+                            break;
+                        case 'Home':
+                            this.goToSlide(0);
+                            e.preventDefault();
+                            break;
+                        case 'End':
+                            this.goToSlide(this.slides.length - 1);
+                            e.preventDefault();
+                            break;
+                    }
+                });
+            }
+
+            setupTouchNav() {
+                let touchStartY = 0;
+                let touchEndY = 0;
+                let touchStartX = 0;
+                let touchEndX = 0;
+
+                document.addEventListener('touchstart', (e) => {
+                    touchStartY = e.changedTouches[0].screenY;
+                    touchStartX = e.changedTouches[0].screenX;
+                }, { passive: true });
+
+                document.addEventListener('touchend', (e) => {
+                    touchEndY = e.changedTouches[0].screenY;
+                    touchEndX = e.changedTouches[0].screenX;
+                    this.handleSwipe(touchStartY, touchEndY, touchStartX, touchEndX);
+                }, { passive: true });
+            }
+
+            handleSwipe(startY, endY, startX, endX) {
+                const deltaY = endY - startY;
+                const deltaX = endX - startX;
+                const threshold = 50;
+
+                if (Math.abs(deltaY) > Math.abs(deltaX)) {
+                    if (deltaY > threshold) {
+                        this.goToSlide(this.currentSlide + 1);
+                    } else if (deltaY < -threshold) {
+                        this.goToSlide(this.currentSlide - 1);
+                    }
+                } else {
+                    if (deltaX > threshold) {
+                        this.goToSlide(this.currentSlide + 1);
+                    } else if (deltaX < -threshold) {
+                        this.goToSlide(this.currentSlide - 1);
+                    }
+                }
+            }
+
+            setupProgressBar() {
+                document.addEventListener('scroll', () => {
+                    const scrollPercent = (window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
+                    this.progressBar.style.width = scrollPercent + '%';
+
+                    // 更新当前幻灯片索引
+                    const slideIndex = Math.round(scrollPercent / 100 * (this.slides.length - 1));
+                    this.updateActiveElements(slideIndex);
+                });
+            }
+
+            setupNavDots() {
+                this.navDotsContainer.innerHTML = '';
+                this.slides.forEach((slide, index) => {
+                    const dot = document.createElement('div');
+                    dot.className = 'nav-dot';
+                    dot.addEventListener('click', () => {
+                        this.goToSlide(index);
+                    });
+                    this.navDotsContainer.appendChild(dot);
+                });
+            }
+
+            setupTabNav() {
+                const tabs = document.querySelectorAll('.tab');
+                tabs.forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        const slideNum = parseInt(tab.getAttribute('data-slide')) - 1;
+                        this.goToSlide(slideNum);
+                    });
+                });
+            }
+
+            updateActiveElements(index) {
+                // 更新导航点
+                const dots = document.querySelectorAll('.nav-dot');
+                dots.forEach((dot, i) => {
+                    dot.classList.toggle('active', i === index);
+                });
+
+                // 更新标签页
+                const tabs = document.querySelectorAll('.tab');
+                tabs.forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                const activeTab = document.querySelector(`.tab[data-slide="${index + 1}"]`);
+                if (activeTab) {
+                    activeTab.classList.add('active');
+                }
+
+                // 更新幻灯片编号
+                this.slides.forEach((slide, i) => {
+                    if (i === index) {
+                        slide.classList.add('visible');
+                    }
+                });
+
+                this.currentSlide = index;
+            }
+
+            goToSlide(index) {
+                if (index < 0) index = 0;
+                if (index >= this.slides.length) index = this.slides.length - 1;
+
+                this.slides[index].scrollIntoView({ behavior: 'smooth' });
+                this.updateActiveElements(index);
+            }
+        }
+
+        // 初始化演示文稿
+        new SlidePresentation();
+    </script>
+</body>
+</html>
